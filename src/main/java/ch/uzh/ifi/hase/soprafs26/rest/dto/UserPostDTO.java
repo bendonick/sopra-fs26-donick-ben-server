@@ -6,6 +6,11 @@ public class UserPostDTO {
 
 	private String username;
 
+	// need to add password and bio to DTO
+	private String password;
+
+	private String bio;
+
 	public String getName() {
 		return name;
 	}
@@ -21,4 +26,23 @@ public class UserPostDTO {
 	public void setUsername(String username) {
 		this.username = username;
 	}
+
+
+	// add setters and getters 
+	public String getPassword() {
+		return password;
+	}
+	public void setPassword(String password) {
+		this.password =password;
+	}
+
+	public String getBio() {
+		return bio;
+	}
+
+	public void setBio(String bio) {
+		this.bio = bio;
+	}
+
+
 }

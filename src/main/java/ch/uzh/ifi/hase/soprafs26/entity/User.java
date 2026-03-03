@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import ch.uzh.ifi.hase.soprafs26.constant.UserStatus;
 
 import java.io.Serializable;
+import java.util.Date;
 
 /**
  * Internal User Representation
@@ -37,6 +38,19 @@ public class User implements Serializable {
 
 	@Column(nullable = false)
 	private UserStatus status;
+
+	//need to add three new fields, ['password', 'create date', 'bio']
+	// 		for bio no nullable because optional for user 
+
+	@Column(nullable = false)
+	private String password;
+
+	@Column(nullable = false)
+	private Date creationDate;
+
+	@Column
+	private String bio;
+
 
 	public Long getId() {
 		return id;
@@ -77,4 +91,31 @@ public class User implements Serializable {
 	public void setStatus(UserStatus status) {
 		this.status = status;
 	}
+
+	// need to add getters and setters for the new fields 
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public Date getCreationDate() {
+		return creationDate;
+	}
+
+	public void setCreationDate(Date creationDate) {
+		this.creationDate = creationDate;
+	}
+
+	public String getBio() {
+		return bio;
+	}
+
+	public void setBio(String bio) {
+		this.bio = bio;
+	}
+
 }

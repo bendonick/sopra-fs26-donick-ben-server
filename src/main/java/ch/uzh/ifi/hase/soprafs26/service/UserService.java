@@ -14,6 +14,7 @@ import ch.uzh.ifi.hase.soprafs26.repository.UserRepository;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Date;
 
 /**
  * User Service
@@ -40,7 +41,9 @@ public class UserService {
 
 	public User createUser(User newUser) {
 		newUser.setToken(UUID.randomUUID().toString());
-		newUser.setStatus(UserStatus.OFFLINE);
+		newUser.setStatus(UserStatus.ONLINE); // changed to online, user is automatically logged in after registration
+		newUser.setCreationDate(new Date());
+		newUser.setName(newUser.getUsername()); // set name to username to satisfy not-null constraint
 		checkIfUserExists(newUser);
 		// saves the given entity but data is only persisted in the database once
 		// flush() is called
@@ -50,6 +53,59 @@ public class UserService {
 		log.debug("Created Information for User: {}", newUser);
 		return newUser;
 	}
+
+	// add login method
+	public User loginUser(User loginUser) {
+		User userByUsername = userRepository.findByUsername(loginUser.getUsername());
+
+		// check if user exists
+		if (userByUsername == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found!");
+		}
+
+		// check if password matches
+		if (!userByUsername.getPassword().equals(loginUser.getPassword())) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Wrong password!");
+		}
+
+		// set status to ONLINE
+		userByUsername.setStatus(UserStatus.ONLINE);
+		userRepository.flush();
+
+		return userByUsername;
+	}
+
+	// add get user by id method
+	public User getUserById(Long userId) {
+		return userRepository.findById(userId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found!"));
+	}
+
+	// add update user method
+	public User updateUser(Long userId, User updatedUser) {
+		User user = getUserById(userId);
+		
+		// update password if provided
+		if (updatedUser.getPassword() != null) {
+			user.setPassword(updatedUser.getPassword());
+		}
+
+		// update bio if provided
+		if (updatedUser.getBio() != null) {
+			user.setBio(updatedUser.getBio());
+		}
+
+		userRepository.flush();
+		return user;
+	}
+
+	// helper method to find a user by their token for authentication
+	public User getUserByToken(String token) {
+		return userRepository.findByToken(token);
+	}
+
+
+
 
 	/**
 	 * This is a helper method that will check the uniqueness criteria of the
@@ -61,18 +117,12 @@ public class UserService {
 	 * @throws org.springframework.web.server.ResponseStatusException
 	 * @see User
 	 */
+
+	// checks if username is already taken, throws 409 conflict error if taken
 	private void checkIfUserExists(User userToBeCreated) {
 		User userByUsername = userRepository.findByUsername(userToBeCreated.getUsername());
-		User userByName = userRepository.findByName(userToBeCreated.getName());
-
-		String baseErrorMessage = "The %s provided %s not unique. Therefore, the user could not be created!";
-		if (userByUsername != null && userByName != null) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-					String.format(baseErrorMessage, "username and the name", "are"));
-		} else if (userByUsername != null) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format(baseErrorMessage, "username", "is"));
-		} else if (userByName != null) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format(baseErrorMessage, "name", "is"));
+		if (userByUsername != null) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken!");
 		}
 	}
 }

@@ -3,7 +3,6 @@ package ch.uzh.ifi.hase.soprafs26.controller;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-
 import ch.uzh.ifi.hase.soprafs26.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs26.entity.User;
 import ch.uzh.ifi.hase.soprafs26.rest.dto.UserPostDTO;
@@ -30,6 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
  * UserControllerTest
@@ -117,4 +117,93 @@ public class UserControllerTest {
 					String.format("The request body could not be created.%s", e.toString()));
 		}
 	}
+
+	@Test
+	public void createUser_duplicateUsername_returns409() throws Exception {
+		// given - UserPostDTO with a username that already exists
+		UserPostDTO userPostDTO = new UserPostDTO();
+		userPostDTO.setUsername("existingUsername");
+		userPostDTO.setPassword("password123");
+
+		// tell mock service to throw 409 when createUser is called
+		given(userService.createUser(Mockito.any()))
+				.willThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken!"));
+
+		// when - send POST request to /users
+		MockHttpServletRequestBuilder postRequest = post("/users")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(asJsonString(userPostDTO));
+
+		// then - expect 409 CONFLICT
+		mockMvc.perform(postRequest)
+				.andExpect(status().isConflict());
+	}
+
+	@Test
+	public void getUser_validId_returnsUser() throws Exception {
+		// given — create a user and mock the service
+		User user = new User();
+		user.setId(1L);
+		user.setUsername("testUsername");
+		user.setStatus(UserStatus.ONLINE);
+		user.setToken("test-token");
+
+		given(userService.getUserById(1L)).willReturn(user);
+		given(userService.getUserByToken("test-token")).willReturn(user);
+
+		// when — send GET request to /users/1 with token in header
+		MockHttpServletRequestBuilder getRequest = get("/users/1")
+				.contentType(MediaType.APPLICATION_JSON)
+				.header("Authorization", "test-token");
+
+		// then — expect 200 OK and correct username
+		mockMvc.perform(getRequest)
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.username", is(user.getUsername())));
+	}
+
+	@Test
+	public void getUser_invalidId_returns404() throws Exception {
+		// given — create a valid user for token auth
+		User user = new User();
+		user.setToken("test-token");
+
+		given(userService.getUserByToken("test-token")).willReturn(user);
+		// tell mock service to throw 404 when getUserById is called
+		given(userService.getUserById(99L))
+				.willThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found!"));
+
+		// when — send GET request to /users/99 with token in header
+		MockHttpServletRequestBuilder getRequest = get("/users/99")
+				.contentType(MediaType.APPLICATION_JSON)
+				.header("Authorization", "test-token");
+
+		// then — expect 404 NOT FOUND
+		mockMvc.perform(getRequest)
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	public void updateUser_validInput_returns204() throws Exception {
+		// given — create a user for token auth
+		User user = new User();
+		user.setId(1L);
+		user.setToken("test-token");
+
+		UserPostDTO userPostDTO = new UserPostDTO();
+		userPostDTO.setPassword("newPassword");
+
+		given(userService.getUserByToken("test-token")).willReturn(user);
+
+		// when — send PUT request to /users/1 with new password
+		MockHttpServletRequestBuilder putRequest = put("/users/1")
+				.contentType(MediaType.APPLICATION_JSON)
+				.header("Authorization", "test-token")
+				.content(asJsonString(userPostDTO));
+
+		// then — expect 204 NO CONTENT
+		mockMvc.perform(putRequest)
+				.andExpect(status().isNoContent());
+	}
+
 }
